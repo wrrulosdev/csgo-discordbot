@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 from discord import RawReactionActionEvent, Guild, PartialEmoji, Message, Role, TextChannel, Emoji
 from discord.member import Member
@@ -50,6 +50,16 @@ class AutoRolesListener(commands.Cog):
         """
         self.bot: Bot = bot
 
+    @staticmethod
+    def same_emoji(reaction_emoji: Union[str, Emoji, PartialEmoji], target_emoji: Union[str, Emoji, PartialEmoji],) -> bool:
+        if isinstance(reaction_emoji, str) and isinstance(target_emoji, str):
+            return reaction_emoji == target_emoji
+
+        if hasattr(reaction_emoji, "id") and hasattr(target_emoji, "id"):
+            return reaction_emoji.id == target_emoji.id
+
+        return False
+
     @commands.Cog.listener()
     async def on_ready(self):
         """
@@ -89,9 +99,10 @@ class AutoRolesListener(commands.Cog):
                         )
                         continue
 
-                    if not any(r.emoji.id == emoji.id and r.me for r in message.reactions):
+                    if not any(self.same_emoji(r.emoji, emoji) and r.me for r in message.reactions):
                         try:
                             await message.add_reaction(emoji)
+
                             logger.info(
                                 f'Added missing reaction {emoji.name} to message {message_id}'
                             )

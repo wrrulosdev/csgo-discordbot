@@ -1,0 +1,4 @@
+loguru==0.7.3
+discord.py==2.6.4
+tongopy==1.0.0
+python-dotenv==1.2.1

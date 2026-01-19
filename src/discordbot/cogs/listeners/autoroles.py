@@ -43,10 +43,19 @@ class AutoRolesListener(commands.Cog):
     }
 
     def __init__(self, bot: Bot):
+        """
+        Initializes the AutoRolesListener cog.
+
+        :param bot: The Discord bot instance.
+        """
         self.bot: Bot = bot
 
     @commands.Cog.listener()
     async def on_ready(self):
+        """
+        Ensures that all autorole messages contain the required reactions.
+        Runs when the bot becomes ready and connected to Discord.
+        """
         logger.info("AutoRolesListener is ensuring bot reactions...")
         channel_id: int = int(BotConstants.AUTOROLES_CHANNEL_ID)
 
@@ -62,27 +71,45 @@ class AutoRolesListener(commands.Cog):
                     message: Message = await channel.fetch_message(int(message_id))
 
                 except Exception as e:
-                    logger.warning(f'Could not fetch message {message_id} in channel {channel.name}: {e}')
+                    logger.warning(
+                        f'Could not fetch message {message_id} in channel {channel.name}: {e}'
+                    )
                     continue
 
                 for emoji_id in emojis.keys():
-                    emoji: Optional[Emoji] = guild.get_emoji(emoji_id) if isinstance(emoji_id, int) else emoji_id
+                    emoji: Optional[Emoji] = (
+                        guild.get_emoji(emoji_id)
+                        if isinstance(emoji_id, int)
+                        else emoji_id
+                    )
 
                     if emoji is None:
-                        logger.warning(f'Emoji ID {emoji_id} not found in guild {guild.name}, skipping...')
+                        logger.warning(
+                            f'Emoji ID {emoji_id} not found in guild {guild.name}, skipping...'
+                        )
                         continue
 
                     if not any(r.emoji.id == emoji.id and r.me for r in message.reactions):
                         try:
                             await message.add_reaction(emoji)
-                            logger.info(f'Added missing reaction {emoji.name} to message {message_id}')
+                            logger.info(
+                                f'Added missing reaction {emoji.name} to message {message_id}'
+                            )
 
                         except Exception as e:
-                            logger.warning(f'Could not add reaction {emoji_id} to message {message_id}: {e}')
+                            logger.warning(
+                                f'Could not add reaction {emoji_id} to message {message_id}: {e}'
+                            )
 
     @commands.Cog.listener()
     @logger.catch
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent) -> None:
+        """
+        Handles reaction additions on autorole messages.
+        Assigns the corresponding role to the reacting user.
+
+        :param payload: The raw reaction event payload.
+        """
         if str(payload.message_id) not in self.ROLES or payload.user_id == self.bot.user.id:
             return
 
@@ -95,7 +122,9 @@ class AutoRolesListener(commands.Cog):
         user: Optional[Member] = guild.get_member(payload.user_id)
 
         if user is None:
-            logger.critical(f'User {payload.user_id} could not be retrieved from autoroles listener')
+            logger.critical(
+                f'User {payload.user_id} could not be retrieved from autoroles listener'
+            )
             return
 
         await self.reaction_check(user, payload.emoji, payload, guild, add=True)
@@ -103,6 +132,12 @@ class AutoRolesListener(commands.Cog):
     @commands.Cog.listener()
     @logger.catch
     async def on_raw_reaction_remove(self, payload: RawReactionActionEvent) -> None:
+        """
+        Handles reaction removals on autorole messages.
+        Removes the corresponding role from the user.
+
+        :param payload: The raw reaction event payload.
+        """
         if str(payload.message_id) not in self.ROLES or payload.user_id == self.bot.user.id:
             return
 
@@ -115,7 +150,9 @@ class AutoRolesListener(commands.Cog):
         user: Optional[Member] = guild.get_member(payload.user_id)
 
         if user is None:
-            logger.critical(f'User {payload.user_id} could not be retrieved from autoroles listener')
+            logger.critical(
+                f'User {payload.user_id} could not be retrieved from autoroles listener'
+            )
             return
 
         await self.reaction_check(user, payload.emoji, payload, guild, add=False)
@@ -128,6 +165,17 @@ class AutoRolesListener(commands.Cog):
         guild: Guild,
         add: bool = True
     ) -> None:
+        """
+        Validates the reaction and applies or removes the corresponding role.
+
+        If the emoji does not match any configured role, the reaction is removed.
+
+        :param user: The member who reacted.
+        :param emoji: The emoji used in the reaction.
+        :param payload: The raw reaction event payload.
+        :param guild: The guild where the reaction occurred.
+        :param add: Whether to add or remove the role.
+        """
         message_roles: Optional[dict[str, int]] = self.ROLES.get(str(payload.message_id))
 
         if not message_roles:
@@ -140,14 +188,18 @@ class AutoRolesListener(commands.Cog):
             if not add:
                 return
 
-            message: Message = await guild.get_channel(payload.channel_id).fetch_message(payload.message_id)
+            message: Message = await guild.get_channel(
+                payload.channel_id
+            ).fetch_message(payload.message_id)
             await message.remove_reaction(emoji, user)
             return
 
         role: Optional[Role] = guild.get_role(role_id)
 
         if role is None:
-            logger.critical(f'The role with ID {role_id} ({emoji_id}) was not found in guild {guild.name}')
+            logger.critical(
+                f'The role with ID {role_id} ({emoji_id}) was not found in guild {guild.name}'
+            )
             return
 
         if not add:
@@ -160,4 +212,9 @@ class AutoRolesListener(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
+    """
+    Adds the AutoRolesListener cog to the bot.
+
+    :param bot: The Discord bot instance.
+    """
     await bot.add_cog(AutoRolesListener(bot))
